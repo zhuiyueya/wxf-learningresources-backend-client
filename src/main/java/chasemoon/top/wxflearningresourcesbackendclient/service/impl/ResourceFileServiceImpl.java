@@ -23,8 +23,15 @@ public class ResourceFileServiceImpl implements ResourceFileService {
 
     @Override
     public String uploadFile(MultipartFile file, ResourceFile meta) throws Exception {
-        log.debug("1");
+        log.debug("开始上传文件: {}", file.getOriginalFilename());
         meta.setFileId(java.util.UUID.randomUUID().toString());
+        
+        // 保存原始文件名用于预览
+        String originalFileName = file.getOriginalFilename();
+        if (originalFileName != null && !originalFileName.trim().isEmpty()) {
+            meta.setFileName(originalFileName);
+        }
+        
         String fileName = minioUtil.upload(file);
         meta.setFilePath(fileName);
         meta.setCreateTime(new Date());

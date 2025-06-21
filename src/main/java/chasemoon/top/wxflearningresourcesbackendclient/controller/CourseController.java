@@ -6,6 +6,7 @@ import chasemoon.top.wxflearningresourcesbackendclient.common.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -21,17 +22,29 @@ public class CourseController {
 
     @GetMapping("/{id}")
     public Result<Course> get(@PathVariable Long id) {
-        return Result.success(courseService.getById(id));
+        Course course = courseService.getById(id);
+        if (course == null) {
+            return Result.error(404,"课程不存在");
+        }
+        return Result.success(course);
     }
 
     @PostMapping("/save")
-    public Result<Course> save(@RequestBody Course course) {
-        return Result.success(courseService.save(course));
+    public Result<Course> save(@Valid @RequestBody Course course) {
+        try {
+            return Result.success(courseService.save(course));
+        } catch (RuntimeException e) {
+            return Result.error(404,e.getMessage());
+        }
     }
 
     @DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable Long id) {
-        courseService.delete(id);
-        return Result.success(null);
+        try {
+            courseService.delete(id);
+            return Result.success(null);
+        } catch (RuntimeException e) {
+            return Result.error(404,e.getMessage());
+        }
     }
 } 
