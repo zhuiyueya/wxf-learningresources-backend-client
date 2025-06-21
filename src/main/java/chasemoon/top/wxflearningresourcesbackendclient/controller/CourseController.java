@@ -31,20 +31,12 @@ public class CourseController {
 
     @PostMapping("/save")
     public Result<Course> save(@Valid @RequestBody Course course) {
-        try {
-            return Result.success(courseService.save(course));
-        } catch (RuntimeException e) {
-            return Result.error(404,e.getMessage());
-        }
+        return Result.success(courseService.save(course));
     }
 
     @DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable Long id) {
-        try {
-            courseService.delete(id);
-            return Result.success(null);
-        } catch (RuntimeException e) {
-            return Result.error(404,e.getMessage());
-        }
+        courseService.delete(id);
+        return Result.success(null);
     }
 } 

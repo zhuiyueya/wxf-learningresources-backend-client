@@ -11,11 +11,11 @@ public interface ResourceFileRepository extends JpaRepository<ResourceFile, Stri
     // 可根据需要添加自定义查询方法
 
     // 按文件名、描述、课程名模糊搜索
-    @Query("SELECT r FROM ResourceFile r LEFT JOIN Course c ON r.courseId = c.id " +
-           "WHERE (:courseId IS NULL OR r.courseId = :courseId) " +
-           "AND (COALESCE(:keyword, '') = '' " +
+    @Query("SELECT r FROM ResourceFile r " +
+           "WHERE (:courseId IS NULL OR r.course.id = :courseId) " +
+           "AND (:keyword IS NULL OR :keyword = '' " +
            "OR r.fileName LIKE %:keyword% " +
            "OR r.fileCover LIKE %:keyword% " +
-           "OR c.name LIKE %:keyword%)")
+           "OR r.course.name LIKE %:keyword%)")
     Page<ResourceFile> search(@Param("courseId") Long courseId, @Param("keyword") String keyword, Pageable pageable);
 } 

@@ -1,6 +1,7 @@
 package chasemoon.top.wxflearningresourcesbackendclient.service.impl;
 
 import chasemoon.top.wxflearningresourcesbackendclient.entity.Course;
+import chasemoon.top.wxflearningresourcesbackendclient.exception.ServiceException;
 import chasemoon.top.wxflearningresourcesbackendclient.repository.CourseRepository;
 import chasemoon.top.wxflearningresourcesbackendclient.service.CourseService;
 import lombok.RequiredArgsConstructor;
@@ -32,29 +33,27 @@ public class CourseServiceImpl implements CourseService {
         if (course.getId() == null) {
             // 新增课程
             if (courseRepository.existsByCode(course.getCode())) {
-                throw new RuntimeException("课程代码已存在：" + course.getCode());
+                throw new ServiceException(409,"课程代码已存在：" + course.getCode());
             }
             if (courseRepository.existsByName(course.getName())) {
-                throw new RuntimeException("课程名已存在：" + course.getName());
+                throw new ServiceException(409,"课程名已存在：" + course.getName());
             }
             course.setCreateTime(new Date());
         } else {
             // 修改课程
-            Course existingCourse = courseRepository.findById(course.getId()).orElse(null);
-            if (existingCourse == null) {
-                throw new RuntimeException("课程不存在");
-            }
-            
+            Course existingCourse = courseRepository.findById(course.getId())
+                    .orElseThrow(() -> new ServiceException(404, "要修改的课程不存在"));
+
             // 检查课程代码是否被其他课程使用
-            if (!existingCourse.getCode().equals(course.getCode()) && 
+            if (!existingCourse.getCode().equals(course.getCode()) &&
                 courseRepository.existsByCode(course.getCode())) {
-                throw new RuntimeException("课程代码已存在：" + course.getCode());
+                throw new ServiceException(409, "课程代码已存在：" + course.getCode());
             }
             
             // 检查课程名是否被其他课程使用
-            if (!existingCourse.getName().equals(course.getName()) && 
+            if (!existingCourse.getName().equals(course.getName()) &&
                 courseRepository.existsByName(course.getName())) {
-                throw new RuntimeException("课程名已存在：" + course.getName());
+                throw new ServiceException(409, "课程名已存在：" + course.getName());
             }
         }
         
@@ -66,7 +65,7 @@ public class CourseServiceImpl implements CourseService {
     @Transactional
     public void delete(Long id) {
         if (!courseRepository.existsById(id)) {
-            throw new RuntimeException("课程不存在");
+            throw new ServiceException(404, "要删除的课程不存在");
         }
         courseRepository.deleteById(id);
     }

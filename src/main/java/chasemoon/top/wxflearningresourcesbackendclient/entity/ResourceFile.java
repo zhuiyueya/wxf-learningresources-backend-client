@@ -1,7 +1,11 @@
 package chasemoon.top.wxflearningresourcesbackendclient.entity;
 
+import chasemoon.top.wxflearningresourcesbackendclient.entity.enums.DeleteFlag;
+import chasemoon.top.wxflearningresourcesbackendclient.entity.enums.FileStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 import java.util.Date;
 
 @Data
@@ -45,15 +49,27 @@ public class ResourceFile {
     @Column(nullable = false)
     private Byte fileType;
 
+    @Enumerated(EnumType.ORDINAL)
     @Column(nullable = false)
-    private Byte status;
+    private FileStatus status = FileStatus.UNREVIEWED;
 
     @Temporal(TemporalType.TIMESTAMP)
     private Date recoveryTime;
 
+    @Enumerated(EnumType.ORDINAL)
     @Column(nullable = false)
-    private Byte delFlag = 0;
+    private DeleteFlag delFlag = DeleteFlag.NORMAL;
 
-    @Column(nullable = false)
-    private Long courseId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "courseId", nullable = false)
+    @JsonIgnore
+    @ToString.Exclude
+    private Course course;
+
+    public void setCourseId(Long courseId) {
+        if (this.course == null) {
+            this.course = new Course();
+        }
+        this.course.setId(courseId);
+    }
 } 
