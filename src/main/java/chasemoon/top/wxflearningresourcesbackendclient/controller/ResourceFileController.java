@@ -4,6 +4,7 @@ import chasemoon.top.wxflearningresourcesbackendclient.entity.ResourceFile;
 import chasemoon.top.wxflearningresourcesbackendclient.service.ResourceFileService;
 import chasemoon.top.wxflearningresourcesbackendclient.common.Result;
 import chasemoon.top.wxflearningresourcesbackendclient.util.MinioUtil;
+import chasemoon.top.wxflearningresourcesbackendclient.service.KkFileViewService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,7 @@ public class ResourceFileController {
     @Qualifier("ResourceFileServiceImpl")
     private ResourceFileService resourceFileService;
     private final MinioUtil minioUtil;
+    private final KkFileViewService kkFileViewService;
 
     @PostMapping("/upload")
     public Result<String> upload(@RequestPart("file") MultipartFile file, @ModelAttribute ResourceFile meta) throws Exception {
@@ -118,8 +120,23 @@ public class ResourceFileController {
         
         // 根据预览类型设置不同的URL
         if ("office".equals(previewType)) {
-            // Office文档使用本地预览URL
-            result.put("url", "/api/resource/preview-stream/" + fileId);
+            // 检查是否支持kkFileView预览
+            if (kkFileViewService.isSupportedFile(file.getFileName())) {
+                // 生成文件访问URL
+                String fileUrl = "/api/resource/preview-stream/" + fileId;
+                // 使用kkFileView预览
+                String kkPreviewUrl = kkFileViewService.generatePreviewUrl(fileUrl, file.getFileName());
+                if (kkPreviewUrl != null) {
+                    result.put("url", kkPreviewUrl);
+                    result.put("previewType", "kkfileview");
+                } else {
+                    // kkFileView不可用时，使用本地预览
+                    result.put("url", fileUrl);
+                }
+            } else {
+                // 不支持的文件类型，使用本地预览
+                result.put("url", "/api/resource/preview-stream/" + fileId);
+            }
         } else {
             // 其他文件使用MinIO预签名URL
             String previewUrl = minioUtil.getPreviewUrl(file.getFilePath());
@@ -127,15 +144,23 @@ public class ResourceFileController {
         }
         
         result.put("fileType", fileType);
-        result.put("previewType", previewType);
+        result.put("previewType", result.get("previewType") != null ? result.get("previewType") : previewType);
         result.put("fileName", file.getFileName());
         
         return Result.success(result);
     }
     
-    @GetMapping("/preview-stream/{fileId}")
-    public ResponseEntity<byte[]> previewStream(@PathVariable String fileId) throws Exception {
-        log.info("开始流式预览文件，fileId: {}", fileId);
+    /**
+     * 流式预览文件
+     *
+     * @param fileId   文件ID
+     * @param fileName 文件名 (可选, 从URL路径中获取)
+     * @return 文件流
+     */
+    @GetMapping(value = "/preview-stream/{fileId}/{fileName:.+}")
+    public ResponseEntity<byte[]> previewStream(@PathVariable String fileId,
+                                               @PathVariable(required = false) String fileName) throws Exception {
+        log.info("开始流式预览文件，fileId: {}, fileName: {}", fileId, fileName);
         ResourceFile file = resourceFileService.getFileDetail(fileId);
         if (file == null) {
             log.warn("文件不存在，fileId: {}", fileId);
@@ -143,10 +168,13 @@ public class ResourceFileController {
         }
         byte[] data = resourceFileService.downloadFile(fileId);
         
-        // 根据文件类型设置正确的Content-Type
-        String contentType = getContentTypeForPreview(file.getFileName());
+        // 如果URL中没有文件名，则使用数据库中的文件名
+        String actualFileName = fileName != null ? fileName : file.getFileName();
         
-        String encodedFileName = java.net.URLEncoder.encode(file.getFileName(), "UTF-8").replaceAll("\\+", "%20");
+        // 根据文件类型设置正确的Content-Type
+        String contentType = getContentTypeForPreview(actualFileName);
+        
+        String encodedFileName = java.net.URLEncoder.encode(actualFileName, "UTF-8").replaceAll("\\+", "%20");
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_TYPE, contentType);
         headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + encodedFileName + "\"; filename*=UTF-8''" + encodedFileName);
